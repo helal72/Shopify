@@ -1,7 +1,7 @@
 import React from "react";
 import axios from 'axios';
-import { useEffect, useReducer } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useReducer, useContext } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import Card from 'react-bootstrap/Card';
@@ -13,6 +13,7 @@ import { Helmet } from 'react-helmet-async';
 import LoadingBox from "../componants/LoadingBox";
 import MessageBox from "../componants/MessageBox";
 import { getError } from "../Utils";
+import { Store } from "../Store";
 
 const reducer = (state, action) => {
   switch (action.type) {
@@ -30,12 +31,31 @@ const reducer = (state, action) => {
 const ProductScreen = () => {
   const params = useParams();
   const { slug } = params;
+  const navigate = useNavigate();
 
   const [{ loading, error, product }, dispatch] = useReducer(reducer, {
     product: [],
     loading: true,
     error: '',
   });
+  const { state, dispatch: ctxDispatch } = useContext(Store);
+  const { cart } = state;
+  
+  const addToCartHandler = async () => {
+    const existItem = cart.cartItems.find((x) => x._id === product._id);
+    const quantity = existItem ? existItem.quantity + 1 : 1;
+    const { data } = await axios.get(`/api/products/${product._id}`);
+
+    if (data.countInStock < quantity) {
+      window.alert('Sorry. Product is out of stock');
+      return;
+    }
+    ctxDispatch({
+      type: 'CART_ADD_ITEM',
+      payload: { ...product, quantity},
+    });
+    navigate('/cart');
+  };
   useEffect(() => {
     const fetchData = async () => {
       dispatch({ type: 'FETCH_REQUEST' });
@@ -110,7 +130,7 @@ const ProductScreen = () => {
                 {product.countInStock > 0 && (
                   <ListGroup.Item>
                     <div className="d-grid">
-                      <Button variant="primary">Add to Cart</Button>
+                      <Button variant="primary" onClick={addToCartHandler}>Add to Cart</Button>
                     </div>
                   </ListGroup.Item>
                 )}
